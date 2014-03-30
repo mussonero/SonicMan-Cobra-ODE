@@ -1721,7 +1721,7 @@ int makedir(const char *newdir, const char *destination)
     if (buffer[len-1] == '/') buffer[len-1] = 0;
 
 
-    if (mkdir (buffer, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == 0)
+    if (mkdir (buffer, S_IRWXO | S_IRWXU | S_IRWXG | S_IFDIR) == 0)
     {
         free(buffer);
         return 1;
@@ -1736,7 +1736,7 @@ int makedir(const char *newdir, const char *destination)
         hold = *p;
         *p = 0;
 
-        if ((mkdir (buffer, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1) )
+        if ((mkdir (buffer, S_IRWXO | S_IRWXU | S_IRWXG | S_IFDIR) == -1) )
         {
             free(buffer);
             return 0;
