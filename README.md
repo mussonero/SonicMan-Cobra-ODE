@@ -20,5 +20,5 @@ log:
 added support for Cobra-ode-MCU-v2 
 showtime support 
 
-aggiunto Zip Level1 no Compression
+added Zip extraction Level1 no Compression 
 
