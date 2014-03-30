@@ -97,6 +97,9 @@ u64 SYSCALL_TABLE		= SYSCALL_TABLE_355;
 #include "video.h"
 #include "manager.h"
 
+#include "unzip/unzip.h"
+#include "unzip/zip.h"
+
 #define FB(x) ((x)*1920*1080*4)	// 1 video frame buffer
 #define MB(x) ((x)*1024*1024)	// 1 MB
 #define KB(x) ((x)*1024)	// 1 KB
@@ -672,7 +675,8 @@ char app_bdvddir[128];
 
 char current_showtime[10]="04.05.000";
 
-//char ini_hdd_dir[64]="/dev_hdd0/GAMES/";
+
+char ini_hdd_dir[128]="/dev_hdd0/game/BCED01063DATA/USRDIR/PS3GAMES_BACKUPS";
 char ini_usb_dir[64]="GAMES";
 char hdd_home[128]="/dev_hdd0/game";
 //aux search folders
@@ -15085,6 +15089,48 @@ quit_viewer:
 					goto cancel_exit;
 				}
 
+
+			if((strstr(list[e].name, ".zip")!=NULL || strstr(list[e].name, ".ZIP")!=NULL && !exist(string_cat(this_pane, "/PS3_GAME")))
+				{
+					sprintf(file_zip, "Extract: %s  ? To The Same Folder",  (const char*)list[e].name);
+
+					dialog_ret=0;
+					cellMsgDialogOpen2( type_dialog_yes_no, (const char*)file_zip, dialog_fun1, (void*)0x0000aaaa, NULL );
+					wait_dialog(); if(dialog_ret!=1){reset_mount_points(); goto ZIP;}
+
+					sprintf(file_zip, "%s/%s", this_pane, list[e].name);
+					if (list[e].name[strlen(list[e].name)-4]=='.') list[e].name[strlen(list[e].name)-4]=0;
+					sprintf(new_file_path, "%s/%s", this_pane, list[e].name);
+					dialog_ret=0;
+					cellMsgDialogOpen2( type_dialog_wait, (const char*)"Extracting please Wait ", dialog_fun2, (void*)0x0000aaaa, NULL );
+					flipc(60);  zip_unpack ((const char*)file_zip, (const char*)new_file_path);
+
+ZIP:
+
+					if((new_pad & BUTTON_TRIANGLE)) e=0;
+
+					first_to_show=0;
+					mouseY=0.12f+0.025f+0.013f; //move mouse to top of folder list
+					state_draw=1;
+					cellMsgDialogAbort();
+
+					if(x_offset>=0.54f)
+					{	first_right=0;
+						sprintf(current_right_pane, "%s", list[e].path);
+						state_read=3;
+					}
+					else
+					{	first_left=0;
+						sprintf(current_left_pane, "%s", list[e].path);
+						state_read=2;
+					}
+
+					new_pad=0;
+
+
+
+				}
+
 				if((strstr(list[e].name, ".pkg")!=NULL || strstr(list[e].name, ".PKG")!=NULL) && !exist(string_cat(this_pane, "/PS3_GAME")))
 				{
 					syscall_mount(this_pane, mount_bdvd);
@@ -20756,10 +20802,12 @@ void draw_browse_column(xmb_def *_xmb, const int _xmb_icon_, int _xmb_x_offset, 
 
 void show_sysinfo_path(char* _path)
 {
-		char sys_info[512];
+		char sys_info[640];
 		char line2[128];
 		char line4[128];
 		char line5[64];
+		char c_firmware2[128];
+		sprintf (c_firmware2, "v%d.%d\n", manager.info.major, manager.info.minor);
 
 		cellFsGetFreeSize(_path, &blockSize, &freeSize);
 		freeSpace = ( ((uint64_t)blockSize * freeSize));
@@ -20767,11 +20815,16 @@ void show_sysinfo_path(char* _path)
 		sprintf(line5, (char*) STR_SI_HDD, (double) (freeSpace / 1073741824.00f));
 
 		strncpy(line4, current_version, 8); line4[8]=0;
-		if(payload==-1) sprintf(line2, "PS3\xE2\x84\xA2 System: Firmware %.2f", c_firmware);
+/*		if(payload==-1) sprintf(line2, "PS3\xE2\x84\xA2 System: Firmware %.2f", c_firmware);
 		if(payload== 0 && payloadT[0]!=0x44) sprintf(line2, "PS3\xE2\x84\xA2 System: Firmware %.2f [SC-36 | PSGroove]", c_firmware);
 		if(payload== 0 && payloadT[0]==0x44) sprintf(line2, "PS3\xE2\x84\xA2 System: Firmware %.2f [SC-36 | Standard]", c_firmware);
 		if(payload== 1) sprintf(line2, "PS3\xE2\x84\xA2 System: Firmware %.2f [SC-8 | Hermes]", c_firmware);
-		if(payload== 2) sprintf(line2, "PS3\xE2\x84\xA2 System: Firmware %.2f [SC-35 | PL3]", c_firmware);
+		if(payload== 2) sprintf(line2, "PS3\xE2\x84\xA2 System: Firmware %.2f [SC-35 | PL3]", c_firmware);*/
+		if(payload==-1) sprintf(line2, "PS3\xE2\x84\xA2 System: COBRA ODE Firmware %s", (char*)c_firmware2);
+		if(payload== 0 && payloadT[0]!=0x44) sprintf(line2, "PS3\xE2\x84\xA2 System: COBRA ODE Firmware %s", (char*)c_firmware2);
+		if(payload== 0 && payloadT[0]==0x44) sprintf(line2, "PS3\xE2\x84\xA2 System: COBRA ODE Firmware %s", (char*)c_firmware2);
+		if(payload== 1) sprintf(line2, "PS3\xE2\x84\xA2 System: COBRA ODE Firmware %s]", (char*)c_firmware2);
+		if(payload== 2) sprintf(line2, "PS3\xE2\x84\xA2 System: COBRA ODE Firmware %s", (char*)c_firmware2);
 
 		//sprintf(sys_info, "multiMAN %s: %s\n\n%s\n\n%s [%s]", (char*) STR_SI_VER, line4, line2, line5, (char*)_path);
 		sprintf(sys_info, "SonicMan-Cobra-ODE %s: %s\n\n%s\n\n%s [%s]", (char*) STR_SI_VER, line4, line2, line5, (char*)_path);
@@ -20780,7 +20833,7 @@ void show_sysinfo_path(char* _path)
 
 void show_sysinfo()
 {
-		char sys_info[512];
+		char sys_info[640];
 
 		get_free_memory();
 
@@ -20789,6 +20842,10 @@ void show_sysinfo()
 		char line3[128];
 		char line4[128];
 		char line5[64];
+		char line6[64];
+		char c_firmware2[128];
+		sprintf (c_firmware2, "V%d.%d\n", manager.info.major, manager.info.minor);
+		sprintf (line6, "%s", (char*)"Ported by GameSonic Team");
 
 		cellFsGetFreeSize((char*)"/dev_hdd0", &blockSize, &freeSize);
 		freeSpace = ( ((uint64_t)blockSize * freeSize));
@@ -20796,11 +20853,18 @@ void show_sysinfo()
 
 		strncpy(line4, current_version, 8); line4[8]=0;
 		sprintf(line1, (char*) STR_SI_MEM, (double) (meminfo.avail/1024.0f));//, (double) ((meminfo.avail+meminfo.total)/1024.0f)
+/*
 		if(payload==-1) sprintf(line2, "PS3\xE2\x84\xA2 System: Firmware %.2f", c_firmware);
 		if(payload== 0 && payloadT[0]!=0x44) sprintf(line2, "PS3\xE2\x84\xA2 System: Firmware %.2f [SC-36 | PSGroove]", c_firmware);
 		if(payload== 0 && payloadT[0]==0x44) sprintf(line2, "PS3\xE2\x84\xA2 System: Firmware %.2f [SC-36 | Standard]", c_firmware);
 		if(payload== 1) sprintf(line2, "PS3\xE2\x84\xA2 System: Firmware %.2f [SC-8 | Hermes]", c_firmware);
 		if(payload== 2) sprintf(line2, "PS3\xE2\x84\xA2 System: Firmware %.2f [SC-35 | PL3]", c_firmware);
+*/
+		if(payload==-1) sprintf(line2, "PS3\xE2\x84\xA2 System: Using COBRA ODE Firmware %s", (char*)c_firmware2);
+		if(payload== 0 && payloadT[0]!=0x44) sprintf(line2, "PS3\xE2\x84\xA2 System: Using COBRA ODE Firmware %s", (char*)c_firmware2);
+		if(payload== 0 && payloadT[0]==0x44) sprintf(line2, "PS3\xE2\x84\xA2 System: Using COBRA ODE Firmware %s", (char*)c_firmware2);
+		if(payload== 1) sprintf(line2, "PS3\xE2\x84\xA2 System: Using COBRA ODE Firmware %s", (char*)c_firmware2);
+		if(payload== 2) sprintf(line2, "PS3\xE2\x84\xA2 System: Using COBRA ODE Firmware %s", (char*)c_firmware2);
 
 		net_avail=cellNetCtlGetInfo(16, &net_info);
 		if(net_avail<0)
@@ -20811,7 +20875,7 @@ void show_sysinfo()
 			sprintf(line3, "%s: %s", (char*) STR_SI_IP, net_info.ip_address);
 
 		//sprintf(sys_info, "multiMAN %s: %s\n\n%s\n%s\n%s\n%s", (char*) STR_SI_VER, line4, line2, line3, line1, line5);
-		sprintf(sys_info, "SonicMan-Cobra-ODE %s: %s\n\n%s\n%s\n%s\n%s", (char*) STR_SI_VER, line4, line2, line3, line1, line5);
+		sprintf(sys_info, "SonicMan-Cobra-ODE %s: %s\n\n%s\n%s\n%s\n%s\n%s", (char*) STR_SI_VER, line4, line2, line3, line1, line5, line6);
 		dialog_ret=0; cellMsgDialogOpen2( type_dialog_back, sys_info, dialog_fun2, (void*)0x0000aaab, NULL ); wait_dialog();
 }
 
@@ -21231,7 +21295,7 @@ int main(int argc, char **argv)
 	else
 	{
 		FILE *fpA;
-		fpA = fopen ( string1x, "w" );	fputs ( "multiMAN was reloaded",  fpA );fputs ( string1x,  fpA );
+		fpA = fopen ( string1x, "w" );	fputs ( "SonicMan-Cobra-ODE was reloaded",  fpA );fputs ( string1x,  fpA );
 		fclose( fpA);
 		sprintf(string1, "%s/PARAM.SFO", app_homedir);
 		change_param_sfo_version(string1);
