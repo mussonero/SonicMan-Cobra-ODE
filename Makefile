@@ -16,7 +16,7 @@ APPID	= BCED01063
 
 MAKE_SELF_WC = make_self_wc
 
-CONTENT_ID=MM4PS3-$(APPID)_00-MULTIMANAGER0209
+CONTENT_ID=MM4PS3-$(APPID)_00-SONICMANAGER0001
 
 PPU_SRCS = $(MM)graphics.cpp $(MM)language.cpp 
 PPU_SRCS += $(VPSHADER_PPU_OBJS) $(FPSHADER_PPU_OBJS) 
@@ -58,7 +58,7 @@ PPU_LDLIBS += -lusbd_stub
 PPU_LDLIBS += -l./libpmsd -l./libpfs -l./libpfsm -l./libz  -l./libunzip.ppu
 
 all : $(PPU_TARGET)
-	@scetool --sce-type SELF --compress-data FALSE --self-type APP --key-revision 0004 --self-fw-version 0003004100000000 --self-app-version 0001000000000000 --self-auth-id 1010000001000003 --self-vendor-id  01000002 --self-cap-flags 00000000000000000000000000000000000000000000003b0000000100040000 -e multiMAN2_BARE.elf EBOOT.BIN
+	@scetool --sce-type SELF --compress-data FALSE --self-type APP --key-revision 0004 --self-fw-version 0003004100000000 --self-app-version 0001000000000000 --self-auth-id 1010000001000003 --self-vendor-id  01000002 --self-cap-flags 00000000000000000000000000000000000000000000003b0000000100040000 -e MultiSonic_BARE.elf EBOOT.BIN
 	
 
 

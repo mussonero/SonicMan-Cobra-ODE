@@ -359,6 +359,7 @@ int do_extract_all(unzFile uf, int opt_extract_without_path, int opt_overwrite, 
 int zip_unpack (const char *zipfilename, const char *destination);
 
 int makedir(const char *newdir, const char *destination);
+void change_file_date(const char *filename, uLong dosdate, tm_unz tmu_date);
 
 #ifdef __cplusplus
 }

@@ -99,6 +99,17 @@ u64 SYSCALL_TABLE		= SYSCALL_TABLE_355;
 
 #include "unzip/unzip.h"
 #include "unzip/zip.h"
+#include "unzip/zlib.h"
+#include "iso.h"
+#include "multiman.h"
+
+
+
+//Cell only defines
+#ifdef __CELLOS_LV2__
+#include <cell/audio.h>
+#include <cell/spurs/types.h>
+#endif
 
 #define FB(x) ((x)*1920*1080*4)	// 1 video frame buffer
 #define MB(x) ((x)*1024*1024)	// 1 MB
@@ -112,10 +123,10 @@ u64 SYSCALL_TABLE		= SYSCALL_TABLE_355;
 #define OFF		0
 #define ON		1
 
-
 CobraManager manager;
 
-SYS_PROCESS_PARAM(1200, 0x100000)
+
+SYS_PROCESS_PARAM(1200, 0x100000);
 
 //colors (COLOR.INI)
 u32 COL_PS3DISC=0xff807000;
@@ -307,10 +318,11 @@ u8 ss_patched=0;
 void write_last_state();
 void save_options();
 void shutdown_system(u8 mode);
-void create_iso(char* iso_path);
+void create_iso(char* iso_path, char* iso_path2, char* iso_name);
+
 
 void show_sysinfo();
-void show_sysinfo_path();
+void show_sysinfo_path(char* _path);
 
 int get_param_sfo_field(char *file, char *field, char *value);
 void file_copy(char *path, char *path2, int progress);
@@ -672,6 +684,7 @@ char fba_self[512];
 char fba_roms[512];
 char bdvd_path[128]="USRDIR";   // sprintf(app_bdvddir, "/dev_bdvd/PS3_GAME/%s",bdvd_path);
 char app_bdvddir[128];
+char file_zip[512];
 
 char current_showtime[10]="04.05.000";
 
@@ -692,9 +705,11 @@ char usb_home_4[128]="/_skip_";
 char usb_home_5[128]="/_skip_";
 
 // ISO/CUE formats
+char iso_ps3_usbs[64];
 char iso_bdv[64]="/dev_bdvd/COBRA";	// Blu-ray iso images
 char iso_dvd[64]="/dev_bdvd/COBRA";	// DVD Video iso images
-char iso_ps3[64]="/dev_hdd0/game/BCED01063DATA/USRDIR/PS3_ISO";	// PS3 iso images
+char iso_ps3[128]="/dev_usb000/PS3ISO";	// PS3 iso images
+
 char iso_psx[64]="/dev_bdvd/COBRA";	// PS1 iso / bin+cue
 char iso_ps2[64]="/dev_bdvd/COBRA";	// PS2 iso / bin+cue
 char iso_ps3_cobra_path[128]="/dev_bdvd/COBRA";
@@ -3107,7 +3122,7 @@ static void add_game_column(t_menu_list *list, int max, int sel, bool force_cove
 							if(strlen(linkfile)>(sizeof(xmb[5].member[0].file_path)-1)) continue;
 							if(pane[ret_f].name[strlen(pane[ret_f].name)-4]=='.') pane[ret_f].name[strlen(pane[ret_f].name)-4]=0;
 							add_xmb_member(xmb[6].member, &xmb[6].size, pane[ret_f].name, (char*)"PS3 ISO",
-								/*type*/32, /*status*/2, /*game_id*/0, /*icon*/xmb_icon_blu, 128, 128, /*f_path*/linkfile, /*i_path*/(char*)"/", 0, 0, ret_f);
+								/*type*/99, /*status*/2, /*game_id*/0, /*icon*/xmb_icon_blu, 128, 128, /*f_path*/linkfile, /*i_path*/(char*)"/", 0, 0, ret_f);
 
 						}
 
@@ -5061,7 +5076,9 @@ void launch_showtime()
 	//sprintf(sts, "%s/SHOWTIME.SELF", app_usrdir);
 	sprintf(sts, "/dev_bdvd/PS3_GAME/USRDIR/SHOWTIME.SELF");
 
-	_Exitspawn((const char*)sts, NULL, NULL, NULL, 0, 1001, SYS_PROCESS_PRIMARY_STACK_SIZE_128K);
+	//_Exitspawn((const char*)sts, NULL, NULL, NULL, 0, 1200, SYS_PROCESS_PRIMARY_STACK_SIZE_128K);
+	exitspawn((const char*)sts, NULL, NULL, NULL, 0, 1200, SYS_PROCESS_PRIMARY_STACK_SIZE_1M);
+
 }
 
 static void launch_self(char *_self, char *_param)
@@ -5361,7 +5378,6 @@ static void ftp_off()
 #define REQUEST_GET2	"\r\n\r\n"
 // command: DIR GET INF
 //ret = network_com("GET", "10.20.2.208", 11222, "/", "/dev_hdd0/GAMES/down_test.bin", 3);
-
 
 static void net_folder_copy(char *path, char *path_new, char *path_name)
 {
@@ -5874,7 +5890,6 @@ termination_PUT:
 
 }
 
-
 int network_del(char *command, char *server_name, int server_port, char *net_file, char *save_path, int show_progress)
 {
 
@@ -6005,7 +6020,6 @@ int read_folder(char *path)
 
 	return 0;
 }
-
 
 int network_com(char *command, char *server_name, int server_port, char *net_file, char *save_path, int show_progress)
 {
@@ -6171,7 +6185,6 @@ termination:
 	free(buf);
 	return (0);
 }
-
 
 static void net_folder_copy_put(char *path, char *path_new, char *path_name)
 {
@@ -6673,8 +6686,6 @@ quit_th:
 return ret;
 }
 
-
-
 u64 mount_dev_flash()
 {
 	u64 ret2 = syscall_837("CELL_FS_IOS:BUILTIN_FLSH1", "CELL_FS_FAT", "/dev_blind", 0, 0, 0, 0, 0);
@@ -6878,8 +6889,6 @@ void sort_entries(t_menu_list *list, int *max)
 
 	}
 }
-
-
 
 void sort_xmb_col_all(xmbmem *_xmb, u16 max, const int first)
 {
@@ -7219,10 +7228,6 @@ static int unload_modules()
 
 	return 0;
 }
-
-
-
-
 
 
 int map_rsx_memory(u8 *buffer, size_t buf_size)
@@ -7759,8 +7764,6 @@ int load_texture(u8 *data, char *name, uint16_t dw)
 /* syscalls                                         */
 /****************************************************/
 
-
-
 static void poke_sc36_path( const char *path)
 {
 
@@ -7898,7 +7901,6 @@ static void syscall_mount2(char *mountpoint, const char *path)
 
 }
 
-
 static void mount_with_cache(const char *path, int _joined, u32 flags, const char *title_id)
 {
 	if(payload!=1)
@@ -7996,7 +7998,6 @@ static void mount_with_cache(const char *path, int _joined, u32 flags, const cha
 	(void)sys8_path_table( dest_table_addr);
 }
 
-
 static void mount_with_ext_data(const char *path, u32 flags)
 {
 	if(!(flags & IS_BDMIRROR))
@@ -8071,13 +8072,14 @@ static void mount_with_ext_data(const char *path, u32 flags)
 
 static void reset_mount_points()
 {
-	if(payload==-1)
-		return;
+	//if(payload==-1)
+	//	return;
 
-	//syscall_838("/dev_bdvd");
-	//syscall_837("CELL_FS_IOS:BDVD_DRIVE", "CELL_FS_UDF", "/dev_bdvd", 0, 1, 0, 0, 0);
+	syscall_838("/dev_bdvd");
+	syscall_837("CELL_FS_IOS:BDVD_DRIVE", "CELL_FS_UDF", "/dev_bdvd", 0, 1, 0, 0, 0);
+	return;
 
-	if(payload!=2) { //Hermes
+/*	if(payload!=2) { //Hermes
 		poke_sc36_path( (char *) "/app_home");
 		system_call_1(36, (uint32_t) "/dev_bdvd");
 	}
@@ -8090,7 +8092,7 @@ static void reset_mount_points()
 	if(payload==2) { //PL3
 		(void)syscall35((char *)"/dev_bdvd", NULL);//(char *)"/dev_bdvd"
 		(void)syscall35((char *)"/app_home", (char *)"/dev_usb000");
-	}
+	}*/
 
 }
 
@@ -8289,8 +8291,6 @@ void put_texture( uint8_t *buffer_to, uint8_t *buffer_from, uint32_t width, uint
 	}
 
 }
-
-
 
 void put_texture_VM_Galpha( uint8_t *buffer_to, uint32_t Twidth, uint32_t Theight, uint8_t *buffer_from, uint32_t _width, uint32_t _height, int from_width, int x, int y, int border, uint32_t border_color)
 {
@@ -8631,8 +8631,6 @@ static void blur_texture(uint8_t *buffer_to, uint32_t width, uint32_t height, in
 	}//iterations
 }
 
-
-
 void draw_list_text( uint8_t *buffer, uint32_t width, uint32_t height, t_menu_list *menu, int menu_size, int selected, int _dir_mode, int _display_mode, int _cover_mode, int opaq, int to_draw )
 {
 	float y = 0.1f, yb;
@@ -8870,12 +8868,7 @@ void draw_list_text( uint8_t *buffer, uint32_t width, uint32_t height, t_menu_li
 
 }
 
-
-
-
 //FONTS
-
-
 
 void print_label_width(float x, float y, float scale, uint32_t color, char *str1p, float weight, float slant, int ufont, float cut)
 {
@@ -8897,8 +8890,6 @@ void print_label_width(float x, float y, float scale, uint32_t color, char *str1
 		max_ttf_label++;
 	}
 }
-
-
 
 void draw_boot_flags(u32 gflags, bool is_locked, int selected)
 {
@@ -9734,11 +9725,14 @@ int parse_ps3_disc(char *path, char * id)
 
 }
 
+
+/*
+
 static double get_system_version(void)
 {
 
 	FILE *fp;
-	//float base=3.41f;  sotto test
+	//float base=3.41f;
 	float base=4.55f;
 	fp = fopen("/dev_flash/vsh/etc/version.txt", "rb");
 	if (fp != NULL) {
@@ -9770,6 +9764,8 @@ static double get_system_version(void)
 	}
 	return base;
 }
+
+*/
 
 void change_param_sfo_field(char *file, char *field, char *value)
 {
@@ -9825,7 +9821,6 @@ void change_param_sfo_field(char *file, char *field, char *value)
 	}
 }
 
-
 int get_param_sfo_field(char *file, char *field, char *value)
 {
 	if(!exist(file)) return 0; // || strstr(file, "/dev_bdvd")!=NULL
@@ -9879,7 +9874,6 @@ int get_param_sfo_field(char *file, char *field, char *value)
 	}
 	return 0;
 }
-
 
 void change_param_sfo_version(const char *file) //parts from drizzt
 {
@@ -9943,7 +9937,8 @@ void change_param_sfo_version(const char *file) //parts from drizzt
 					if (dialog_ret == 1) {
 						char ver_patch[10];
 						//format the version to be patched so it is xx.xxx
-						snprintf(ver_patch, sizeof(ver_patch), "%06.3f", c_firmware);
+						//snprintf(ver_patch, sizeof(ver_patch), "%06.3f", c_firmware);
+						snprintf(ver_patch, sizeof(ver_patch), "%06.3f", (char*)"4.55f");
 						memcpy(&mem[pos], ver_patch, 6);
 						fp = fopen(file, "wb");
 						if (fp != NULL) {
@@ -9966,142 +9961,6 @@ void change_param_sfo_version(const char *file) //parts from drizzt
 			free(mem);
 	}
 }
-
-/*
-int parse_param_sfo(char *file, char *title_name, char *title_id, int *par_level)
-{
-//	if(strstr(file, "/pvd_usb")!=NULL) return -1;
-
-	*par_level=0;
-
-	FILE *fp = NULL;
-
-	unsigned len, pos, str;
-	unsigned char *mem = NULL;
-#if (CELL_SDK_VERSION>0x210001)
-	int pfsm=0;
-	if(strstr(file, "/pvd_usb")!=NULL) pfsm=1;
-	PFS_HFILE fh = PFS_FILE_INVALID;
-	if (pfsm) {
-		uint64_t size;
-		if ((fh = PfsFileOpen(file)) == PFS_FILE_INVALID)
-			return -1;
-		if (PfsFileGetSizeFromHandle(fh, &size) != 0) {
-			PfsFileClose(fh);
-			return -1;
-		}
-		len = (unsigned)size;
-	} else
-#endif
-	{
-		if ((fp = fopen(file, "rb")) == NULL)
-			return -1;
-		fseek(fp, 0, SEEK_END);
-		len = ftell(fp);
-	}
-
-	mem = (unsigned char *) malloc(len + 16);
-	if (!mem) {
-#if (CELL_SDK_VERSION>0x210001)
-		if (pfsm) {
-			PfsFileClose(fh);
-		} else
-#endif
-		{
-			fclose(fp);
-		}
-		return -2;
-	}
-
-		memset(mem, 0, len+16);
-
-#if (CELL_SDK_VERSION>0x210001)
-	if (pfsm) {
-		int32_t r;
-		r = PfsFileRead(fh, mem, len, NULL);
-		PfsFileClose(fh);
-		if (r != 0)
-			return -1;
-	} else
-#endif
-	{
-		fseek(fp, 0, SEEK_SET);
-		fread((void *) mem, len, 1, fp);
-		fclose(fp);
-	}
-
-		str= (mem[8]+(mem[9]<<8));
-		pos=(mem[0xc]+(mem[0xd]<<8));
-
-		int indx=0;
-
-		while(str<len)
-			{
-			if(mem[str]==0) break;
-
-			if(!strcmp((char *) &mem[str], "TITLE"))
-				{
-				memset(title_name, 0, 63);
-				strncpy(title_name, (char *) &mem[pos], 63);
-//				free(mem);
-				goto scan_for_PL;
-				}
-			while(mem[str]) str++;str++;
-			pos+=(mem[0x1c+indx]+(mem[0x1d+indx]<<8));
-			indx+=16;
-			}
-
-scan_for_PL:
-		str= (mem[8]+(mem[9]<<8));
-		pos=(mem[0xc]+(mem[0xd]<<8));
-		indx=0;
-
-		while(str<len)
-			{
-			if(mem[str]==0) break;
-
-			if(!strcmp((char *) &mem[str], "PARENTAL_LEVEL"))
-				{
-				(*par_level)=mem[pos];
-				goto scan_for_id;
-				}
-			while(mem[str]) str++;str++;
-			pos+=(mem[0x1c+indx]+(mem[0x1d+indx]<<8));
-			indx+=16;
-			}
-
-scan_for_id:
-		str= (mem[8]+(mem[9]<<8));
-		pos=(mem[0xc]+(mem[0xd]<<8));
-		indx=0;
-
-		while(str<len)
-			{
-			if(mem[str]==0) break;
-
-			if(!strcmp((char *) &mem[str], "TITLE_ID"))
-				{
-				memset(title_id, 0, 10);
-				strncpy(title_id, (char *) &mem[pos], 10); title_id[9]=0;
-				free(mem);
-				return 0;
-				}
-			while(mem[str]) str++;str++;
-			pos+=(mem[0x1c+indx]+(mem[0x1d+indx]<<8));
-			indx+=16;
-			}
-
-
-
-		if(mem) free(mem);
-
-	return -1;
-
-}
-
-*/
-
-
 
 void sort_pane(t_dir_pane *list, int *max)
 {
@@ -10285,8 +10144,6 @@ int ps3_home_scan_ext_bare(char *path, t_dir_pane_bare *list, int *max, char *_e
 	return 0;
 }
 
-
-
 int ps3_home_scan_bare2(char *path, t_dir_pane *list, int *max)
 {
 	if((*max)>=MAX_PANE_SIZE-1) {(*max)=(MAX_PANE_SIZE-1); return 0;}
@@ -10326,7 +10183,6 @@ int ps3_home_scan_bare2(char *path, t_dir_pane *list, int *max)
 
 	return 0;
 }
-
 
 void read_dir(char *path, t_dir_pane *list, int *max)
 {
@@ -11180,7 +11036,6 @@ void fill_entries_from_device(const char *path, t_menu_list *list, int *max, u32
 
 }
 
-
 /****************************************************/
 /* FILE UTILS                                       */
 /****************************************************/
@@ -11660,10 +11515,10 @@ int fast_copy_process()
 						sprintf(string1, (const char*) STR_COPY17, ((double) global_device_bytes)/(1024.0*1024.0),((double) copy_global_bytes)/(1024.0*1024.0), file_counter+1, copy_file_counter, (eta/60), eta % 60);
 				}
 			}
-			ClearSurface();
+/*			ClearSurface();
 			draw_square(-1.0f, 1.0f, 2.0f, 2.0f, 0.0f, 0x101010ff);
 			cellDbgFontPrintf( 0.07f, 0.07f, 1.2f, 0xc0c0c0c0, string1);
-			cellDbgFontPrintf( 0.5f-0.15f, 1.0f-0.07*2.0f, 1.2f, 0xc0c0c0c0, "Press /\\ to abort");
+			cellDbgFontPrintf( 0.5f-0.15f, 1.0f-0.07*2.0f, 1.2f, 0xc0c0c0c0, "Press /\\ to abort");*/
 			if(lastINC3>0) cellMsgDialogProgressBarInc(CELL_MSGDIALOG_PROGRESSBAR_INDEX_SINGLE,lastINC3);
 			cellMsgDialogProgressBarSetMsg(CELL_MSGDIALOG_PROGRESSBAR_INDEX_SINGLE, string1);
 			seconds2= (int) (time(NULL));
@@ -11848,9 +11703,6 @@ int fast_copy_add(char *pathr, char *pathw, char *file)
 
 	return 0;
 }
-
-
-
 
 void file_copy(char *path, char *path2, int progress)
 {
@@ -12111,7 +11963,6 @@ void write_last_play( const char *gamebin, const char *path, const char *tname, 
 	change_param_sfo_field( last_play_sfo, (char*)"CATEGORY", (char*)"HG");
 	cellMsgDialogAbort();
 }
-
 
 void cache_png(char *path, char *title_id)
 {
@@ -12507,10 +12358,10 @@ static int _my_game_copy_pfsm(char *path, char *path2)
 
 					cellMsgDialogProgressBarSetMsg(CELL_MSGDIALOG_PROGRESSBAR_INDEX_SINGLE, string1);
 
-					ClearSurface();
+/*					ClearSurface();
 					draw_square(-1.0f, 1.0f, 2.0f, 2.0f, 0.0f, 0x101010ff);
 					cellDbgFontPrintf( 0.07f, 0.07f, 1.2f, 0xc0c0c0c0, string1);
-					cellDbgFontPrintf( 0.5f-0.15f, 1.0f-0.07*2.0f, 1.2f, 0xc0c0c0c0, "Press /\\ to abort");
+					cellDbgFontPrintf( 0.5f-0.15f, 1.0f-0.07*2.0f, 1.2f, 0xc0c0c0c0, "Press /\\ to abort");*/
 					seconds2= (int) (time(NULL));
 					flip();
 				}
@@ -12541,7 +12392,6 @@ static int _my_game_copy_pfsm(char *path, char *path2)
 	PfsFileFindClose(dir);
 	return 0;
 }
-
 
 int my_game_copy_pfsm(char *path, char *path2)
 {
@@ -13068,10 +12918,10 @@ static int _copy_nr(char *path, char *path2, char *path_name)
 
 					cellMsgDialogProgressBarSetMsg(CELL_MSGDIALOG_PROGRESSBAR_INDEX_SINGLE, string1);
 
-					ClearSurface();
+/*					ClearSurface();
 					draw_square(-1.0f, 1.0f, 2.0f, 2.0f, 0.0f, 0x101010ff);
 					cellDbgFontPrintf( 0.07f, 0.07f, 1.2f, 0xc0c0c0c0, string1);
-					cellDbgFontPrintf( 0.5f-0.15f, 1.0f-0.07*2.0f, 1.2f, 0xc0c0c0c0, "Press /\\ to abort");
+					cellDbgFontPrintf( 0.5f-0.15f, 1.0f-0.07*2.0f, 1.2f, 0xc0c0c0c0, "Press /\\ to abort");*/
 					flip();
 					seconds2= (int) (time(NULL));
 				}
@@ -13415,7 +13265,6 @@ void photo_export( char *filenape_v, char *album, int to_unregister )
 	}
 }
 
-
 //register music
 
 void cb_export_finish_m( int result, void *userdata) //export callback
@@ -13715,8 +13564,6 @@ void video_export( char *filename_v, char *album, int to_unregister )
 	}
 }
 
-
-
 //MP3
 void set_channel_vol(int Channel, float vol, float vol2)
 {
@@ -13814,14 +13661,15 @@ int StartMultiStream()
 
 	cellMSCoreSetVolume64(CELL_MS_BUS_FLAG | 1, CELL_MS_WET, fBusVols);
 	cellMSCoreSetVolume64(CELL_MS_MASTER_BUS, CELL_MS_DRY, fBusVols);
-
+#ifdef __CELLOS_LV2__
     cellMSSystemConfigureLibAudio(&audioParam, &portConfig);
+#endif
+
     cellAudioPortStart(portNum);
 	sys_ppu_thread_create(&ms_thread, MS_update_thread, NULL, 64, 0x4000, 0, "multiSTREAM");
 	(void) cellMSSystemSetGlobalCallbackFunc(mp3_callback);
 	return 1;
 }
-
 
 /**********************************************************************************
 	Starts the streaming of the passed sample data as a one shot sfx.
@@ -13983,7 +13831,6 @@ int main_mp3_th( char *temp_mp3, u32 skip)
 	return 0;
 }
 
-
 int readmem(unsigned char *_x, uint64_t _fsiz, uint64_t _chunk, u8 mode) //read lv1/lv2 memory chunk
 {
 	uint64_t n, m;
@@ -14002,7 +13849,6 @@ int readmem(unsigned char *_x, uint64_t _fsiz, uint64_t _chunk, u8 mode) //read 
 
 	return _chunk;
 }
-
 
 //replacemem( 0x6170705F686F6D65UUL, 0x6465765F62647664UUL); //app_home -> dev_bdvd
 void replacemem(uint64_t _val_search1, uint64_t _val_replace1)
@@ -14037,7 +13883,6 @@ void replacemem_lv1(uint64_t _val_search1, uint64_t _val_replace1)
 	}
 	return;
 }
-
 
 int mod_mount_table(const char *new_path, int _mode) //mode 0/1 = reset/change
 {
@@ -15082,6 +14927,7 @@ quit_viewer:
 				sprintf(my_mp3_file, "%s", list[e].path);
 				char just_path[256], just_title[128], just_title_id[16];
 
+
 				if(strstr(list[e].name, ".CNF")!=NULL || strstr(list[e].name, ".cnf")!=NULL)
 				{
 					syscall_mount(this_pane, mount_bdvd);
@@ -15090,8 +14936,9 @@ quit_viewer:
 				}
 
 
-			if((strstr(list[e].name, ".zip")!=NULL || strstr(list[e].name, ".ZIP")!=NULL && !exist(string_cat(this_pane, "/PS3_GAME")))
-				{
+			if(strstr(list[e].name, ".zip")!=NULL || strstr(list[e].name, ".ZIP")!=NULL && !exist(string_cat(this_pane, "/PS3_GAME")))
+
+			 {
 					sprintf(file_zip, "Extract: %s  ? To The Same Folder",  (const char*)list[e].name);
 
 					dialog_ret=0;
@@ -15133,7 +14980,7 @@ ZIP:
 
 				if((strstr(list[e].name, ".pkg")!=NULL || strstr(list[e].name, ".PKG")!=NULL) && !exist(string_cat(this_pane, "/PS3_GAME")))
 				{
-					syscall_mount(this_pane, mount_bdvd);
+
 					dialog_ret=0;
 					cellMsgDialogOpen2( type_dialog_yes_no, (const char*)STR_PKGXMB, dialog_fun1, (void*)0x0000aaaa, NULL );
 					wait_dialog();
@@ -16470,7 +16317,7 @@ overwrite_cancel_3:
 				sprintf(fm_func, "%s", "none");
 			}
 
-			if (!strcmp(fm_func, "iso") && strstr(other_pane, "/net_host")==NULL && strstr(other_pane, "/ps3_home")==NULL && strstr(other_pane, "/pvd_usb")==NULL)
+			if (!strcmp(fm_func, "iso") /*&& strstr(other_pane, "/net_host")==NULL && strstr(other_pane, "/ps3_home")==NULL && strstr(other_pane, "/pvd_usb")==NULL*/)
 
 			{
 //fm create iso
@@ -16501,7 +16348,7 @@ overwrite_cancel_3:
 					sprintf(filename, "%s/%sDVD.iso", other_pane, prefix);
 				}
 				else
-				if(exist((char*)"/dev_bdvd/PS3_GAME") )
+				if(exist((char*)"/dev_bdvd/PS3_GAME") || disc_in_tray==PS3_DISC )
 				{
 					sprintf(filename, "%s/%sPS3.iso", other_pane, prefix);
 				}
@@ -16510,7 +16357,7 @@ overwrite_cancel_3:
 				{
 					sprintf(filename, "%s/%sDATA.iso", other_pane, prefix);
 				}
-				create_iso(filename);
+				//create_iso(filename);
 				state_read=1;
 			}
 
@@ -16540,7 +16387,6 @@ overwrite_cancel_3:
 		y_offset+=0.026f;
 	}
 }
-
 
 void parse_color_ini()
 {
@@ -17050,7 +16896,6 @@ out_ini:
 
 return 0;
 }
-
 
 void get_www_themes(theme_def *list, u8 *max)
 {		int ret=0;
@@ -17730,10 +17575,6 @@ void clean_up()
 	sprintf(cleanup, "%s", "/dev_hdd0/game"); cellFsChmod(cleanup, CELL_FS_S_IFDIR | 0777);
 }
 
-
-
-
-
 void slide_xmb0_left(int _xmb_icon)
 {
 	xmb0_slide=0;
@@ -18145,9 +17986,6 @@ int delete_game_cache()
 		return ret_f;
 }
 
-
-
-
 void apply_theme (const char *theme_file, const char *theme_path)
 {
 	char theme_name[1024];
@@ -18327,7 +18165,6 @@ void apply_theme (const char *theme_file, const char *theme_path)
 		state_draw=1;
 }
 
-
 void mod_xmb_member(xmbmem *_member, u16 size, char *_name, char *_subname)
 {
 	snprintf(_member[size].name, sizeof(_member[size].name), "%s", _name);
@@ -18335,7 +18172,6 @@ void mod_xmb_member(xmbmem *_member, u16 size, char *_name, char *_subname)
 	snprintf(_member[size].subname, sizeof(_member[size].subname), "%s", _subname);
 	_member[size].subname[sizeof(_member[size].subname)]=0;
 }
-
 
 void add_xmb_suboption(xmbopt *_option, u8 *_size, u8 _type, char *_label, char *_value)
 {
@@ -18510,8 +18346,6 @@ void reset_xmb(u8 _flag)
 	xmb[9].data=text_FMS+(8*65536);
 }
 
-
-
 void load_legend(u8* buffer, char* path)
 {
 	if(!mm_locale && confirm_with_x)
@@ -18551,9 +18385,6 @@ void load_legend(u8* buffer, char* path)
 		flush_ttf(buffer, 1665, 96);
 	}
 }
-
-
-
 
 int open_theme_menu(char *_caption, int _width, theme_def *list, int _max, int _x, int _y, int _max_entries, int _centered)
 {
@@ -18680,7 +18511,6 @@ int open_theme_menu(char *_caption, int _width, theme_def *list, int _max, int _
 
 	return -1;
 }
-
 
 void change_opacity(u8 *buffer, int delta, u32 size)
 {
@@ -18845,9 +18675,6 @@ static int open_side_menu(int _top, int sel)
 	return sel;
 
 }
-
-
-
 
 static void add_browse_column_thread_entry( uint64_t arg )
 {
@@ -19686,12 +19513,6 @@ thumb_cont_fba:
 	sys_ppu_thread_exit(0);
 }
 
-
-
-
-
-
-
 void save_options()
 {
 	seconds_clock=0;
@@ -19757,6 +19578,7 @@ void save_options()
 		fclose( fpA);
 	}
 }
+
 void parse_settings()
 {
 	seconds_clock=0;
@@ -20264,22 +20086,19 @@ void add_home_column()
 
 }
 
-
-
-
 void add_web_column()
 {
 		sprintf(xmb[9].name, "%s", xmb_columns[9]); xmb[9].first=0; xmb[9].size=0;
 		add_xmb_member(xmb[9].member, &xmb[9].size, (char*)STR_XC9_PSX, (char*)STR_XC9_PSX1,
-				/*type*/6, /*status*/2, /*game_id*/-1, /*icon*/xmb_icon_globe, 128, 128, /*f_path*/(char*)"http://www.sony.com/", /*i_path*/(char*)"/", 0, 0, 0);
+				/*type*/6, /*status*/2, /*game_id*/-1, /*icon*/xmb_icon_globe, 128, 128, /*f_path*/(char*)"http://www.playstation.com/", /*i_path*/(char*)"/", 0, 0, 0);
 		add_xmb_member(xmb[9].member, &xmb[9].size, (char*)STR_XC9_THM, (char*)STR_XC9_THM1,
 				/*type*/6, /*status*/2, /*game_id*/-1, /*icon*/xmb_icon_theme, 128, 128, /*f_path*/(char*)"/", /*i_path*/(char*)"/", 0, 0, 0);
 		add_xmb_member(xmb[9].member, &xmb[9].size, (char*)STR_XC9_HOME, (char*)STR_XC9_HOME1,
 				/*type*/6, /*status*/2, /*game_id*/-1, /*icon*/xmb_icon_logo, 408, 180, /*f_path*/(char*)"http://www.gamesonic.it", /*i_path*/(char*)"/", 0, 0, 0);
 		add_xmb_member(xmb[9].member, &xmb[9].size, (char*)STR_XC9_HELP, (char*)STR_XC9_HELP1,
-				/*type*/6, /*status*/2, /*game_id*/-1, /*icon*/xmb[9].data, 128, 128, /*f_path*/(char*)"http://gbatemp.net/t291170-multiman-beginner-s-guide", /*i_path*/(char*)"/", 0, 0, 0);
+				/*type*/6, /*status*/2, /*game_id*/-1, /*icon*/xmb[9].data, 128, 128, /*f_path*/(char*)"http://gamesonic.it/forum/cobra-ode", /*i_path*/(char*)"/", 0, 0, 0);
 		add_xmb_member(xmb[9].member, &xmb[9].size, (char*)STR_XC9_SUPP, (char*)STR_XC9_SUPP1,
-				/*type*/6, /*status*/2, /*game_id*/-1, /*icon*/xmb_icon_help, 128, 128, /*f_path*/(char*)"http://www.google.com/search?q=donate+for+multiMAN", /*i_path*/(char*)"/", 0, 0, 0);
+				/*type*/6, /*status*/2, /*game_id*/-1, /*icon*/xmb_icon_help, 128, 128, /*f_path*/(char*)"http://www.google.com/search?q=donate+for+multiMAN+SonicMan", /*i_path*/(char*)"/", 0, 0, 0);
 
 }
 
@@ -20409,7 +20228,6 @@ clock_text:
 		display_img(1520, 90, 300, 30, 300, 30, 0.7f, 300, 30);
 }
 
-
 void draw_xmb_info()
 {
 	if( c_opacity2<=0x10
@@ -20468,7 +20286,6 @@ void draw_xmb_icon_text(int _xmb_icon)
 	flush_ttf(xmb_col, 300, 30);
 	for(int n=0; n<xmb[_xmb_icon].size; n++) xmb[_xmb_icon].member[n].data=-1;
 }
-
 
 void draw_stars()
 {
@@ -20570,11 +20387,6 @@ err_web:
 
 char bluray_game[64], bluray_id[10];
 int bluray_pl=0;
-
-
-
-
-
 
 void draw_browse_column(xmb_def *_xmb, const int _xmb_icon_, int _xmb_x_offset, int _xmb_y_offset, const bool _recursive, int sub_level)
 {
@@ -20799,7 +20611,6 @@ void draw_browse_column(xmb_def *_xmb, const int _xmb_icon_, int _xmb_x_offset, 
 				}
 }
 
-
 void show_sysinfo_path(char* _path)
 {
 		char sys_info[640];
@@ -20815,11 +20626,6 @@ void show_sysinfo_path(char* _path)
 		sprintf(line5, (char*) STR_SI_HDD, (double) (freeSpace / 1073741824.00f));
 
 		strncpy(line4, current_version, 8); line4[8]=0;
-/*		if(payload==-1) sprintf(line2, "PS3\xE2\x84\xA2 System: Firmware %.2f", c_firmware);
-		if(payload== 0 && payloadT[0]!=0x44) sprintf(line2, "PS3\xE2\x84\xA2 System: Firmware %.2f [SC-36 | PSGroove]", c_firmware);
-		if(payload== 0 && payloadT[0]==0x44) sprintf(line2, "PS3\xE2\x84\xA2 System: Firmware %.2f [SC-36 | Standard]", c_firmware);
-		if(payload== 1) sprintf(line2, "PS3\xE2\x84\xA2 System: Firmware %.2f [SC-8 | Hermes]", c_firmware);
-		if(payload== 2) sprintf(line2, "PS3\xE2\x84\xA2 System: Firmware %.2f [SC-35 | PL3]", c_firmware);*/
 		if(payload==-1) sprintf(line2, "PS3\xE2\x84\xA2 System: COBRA ODE Firmware %s", (char*)c_firmware2);
 		if(payload== 0 && payloadT[0]!=0x44) sprintf(line2, "PS3\xE2\x84\xA2 System: COBRA ODE Firmware %s", (char*)c_firmware2);
 		if(payload== 0 && payloadT[0]==0x44) sprintf(line2, "PS3\xE2\x84\xA2 System: COBRA ODE Firmware %s", (char*)c_firmware2);
@@ -20930,16 +20736,19 @@ void restart_multiman()
 
 void shutdown_system(u8 mode) // X0-off X1-reboot, X=0 no prompt, X=1 prompt
 {
-	if( !(mode&0x10) || (  net_used_ignore() )  )
-	{
-		unload_modules();
-		if(!(mode&1)) {system_call_4(379,0x1100,0,0,0);}
-		if(mode&1) {system_call_4(379,0x1200,0,0,0);} // 0x1100/0x100 = turn off,0x1200/0x200=reboot
+	//if( !(mode&0x10) || (  net_used_ignore() )  )
+	//{
+		//unload_modules();
+		//if(!(mode&1)) {system_call_4(379,0x1100,0,0,0);}
+		//if(mode&1) {system_call_4(379,0x1200,0,0,0);} // 0x1100/0x100 = turn off,0x1200/0x200=reboot
+		//system_call_4(379,0x1100,0,0,0);
+		//system_call_4(379,0x1200,0,0,0);
 		unload_modules();
 		exit(0);
-	}
+	//}
 }
 
+/*
 void create_iso(char* iso_path)
 {
 	int rr;
@@ -21093,6 +20902,19 @@ cancel_iso_raw:
 	ss_timer=0;
 	ss_timer_last=time(NULL);
 }
+*/
+
+
+void create_iso(char* iso_path, char* iso_path2, char* iso_name)
+{
+
+	start_dumps_disc(manager, (char*)iso_path2);
+/////
+/////
+
+}
+
+
 
 void funcEject()
 {
@@ -21190,7 +21012,6 @@ void check_tray()
 	state_read=1; state_draw=1;
 }
 
-
 int main(int argc, char **argv)
 {
 	cellSysutilRegisterCallback( 0, sysutil_callback, NULL );
@@ -21250,10 +21071,15 @@ int main(int argc, char **argv)
 		cellFsMkdir(app_usrdir, S_IRWXO | S_IRWXU | S_IRWXG | S_IFDIR);
 		sprintf(path_1, "%s/PS3GAMES_BACKUPS",app_usrdir);
 		sprintf(path_2, "%s/PS3_ISO",app_usrdir);
+		sprintf(path_3, "%s/ShowTime-Dir",app_usrdir);
+		sprintf(path_4, "%s/ShowTime-Dir/cache",app_usrdir);
 		cellFsMkdir(path_1, S_IRWXO | S_IRWXU | S_IRWXG | S_IFDIR);
 		cellFsMkdir(path_2, S_IRWXO | S_IRWXU | S_IRWXG | S_IFDIR);
+		cellFsMkdir(path_3, S_IRWXO | S_IRWXU | S_IRWXG | S_IFDIR);
+		cellFsMkdir(path_4, S_IRWXO | S_IRWXU | S_IRWXG | S_IFDIR);
 
 	}
+
 	else
 		sprintf(app_usrdir, "/dev_hdd0/game/%s/USRDIR",app_path);
         sprintf(app_bdvddir, "/dev_bdvd/PS3_GAME/%s",bdvd_path);
@@ -21449,9 +21275,11 @@ int main(int argc, char **argv)
 
 	max_menu_list=0;
 
-	/*c_firmware = (float) get_system_version();
-	if(c_firmware>3.40f && c_firmware<3.55f) c_firmware=3.41f;
-	if(c_firmware>3.55f) c_firmware=3.55f;*/
+	c_firmware = printf ("COBRA ODE Firmware : v%d.%d\n", manager.info.major, manager.info.minor);
+/*	c_firmware = (float) get_system_version();
+	if(c_firmware>3.40f && c_firmware<3.55f) c_firmware=0.00f;
+	if(c_firmware>3.55f) c_firmware=1.23f;*/
+
 
 	mod_mount_table((char*)"nothing", 0); //restore
 	for(int n2=0;n2<99;n2++) {
@@ -21771,158 +21599,6 @@ int main(int argc, char **argv)
 	payload = -1;  // 0->psgroove  1->hermes  2->PL3
 	payloadT[0]=0x20;
 
-	if(sys8_enable(0) > 0)
-	{
-		payload=1; payloadT[0]=0x48; //H
-		ret = sys8_enable(0);
-		ret = sys8_path_table(0ULL);
-	}
-
-	else
-	{
-		payload=0;
-		if (syscall35("/dev_hdd0", "/dev_hdd0") == 0)
-		{
-			payload=2; payloadT[0]=0x50; //P
-		}
-		else
-		{
-
-			payload=0;
-			if(peekq(0x8000000000346690ULL) == 0x80000000002BE570ULL && peekq(0x80000000002D8538ULL) == 0x7FA3EB784BFDAD60ULL)
-			{
-				pokeq(0x80000000002D8498ULL, 0x38A000074BD7623DULL ); // 07 symbols search
-				pokeq(0x80000000002D8504ULL, 0x38A000024BD761D1ULL ); // 0x002D7800 (/app_home) 2 search
-//				enable_sc36();
-			}//D
-
-			payload=-1;
-			system_call_1(36, (uint32_t) app_usrdir);
-			sprintf(filename, "%s", "/dev_bdvd/EBOOT.BIN");
-			if(exist(filename))
-			{
-				payload=0; payloadT[0]=0x47; //G
-				if(peekq(0x8000000000346690ULL) == 0x80000000002BE570ULL && peekq(0x80000000002D8538ULL) == 0x7FA3EB784BFDAD60ULL) {payloadT[0]=0x44; sc36_path_patch=1; }//D
-			}
-
-		}
-	}
-
-
-
-	sprintf(filename, "%s/BDEMU.BIN", app_usrdir);
-	if(exist(filename))
-	{
-		fpV = fopen ( filename, "rb" );
-		fseek(fpV, 0, SEEK_END);
-		u32 len=ftell(fpV);
-		fclose(fpV);
-		if(len==488)  {bdemu2_present=0; if(bd_emulator) bd_emulator=2;}
-		if(len==4992) {bdemu2_present=1;}
-
-	}
-	sprintf(filename, "%s/BDEMU.BIN", app_usrdir);
-	if(c_firmware == 3.55f && payload==-1 && exist(filename) && bd_emulator==2)
-	{
-		fpV = fopen ( filename, "rb" );
-		fseek(fpV, 0, SEEK_SET);
-		fread((void *) bdemu, 488, 1, fpV);
-		fclose(fpV);
-
-		payload=0;
-		psgroove_main(0);
-
-		if(peekq(0x8000000000346690ULL) == 0x80000000002BE570ULL){
-			payload=0;
-			if(peekq(0x80000000002D8538ULL) == 0x7FA3EB784BFDAD60ULL )
-			{
-				payloadT[0]=0x44; //D
-				sc36_path_patch=1;
-			}
-			else
-			{
-				payloadT[0]=0x47; //G
-				sc36_path_patch=0;
-			}
-		}
-		else
-		{
-			payload=-1; payloadT[0]=0x20; //NONE
-		}
-	}
-
-
-	sprintf(filename, "%s/BDEMU.BIN", app_usrdir);
-	if(c_firmware == 3.55f && payload==-1 && exist(filename) && bd_emulator==1)
-	{
-		fpV = fopen ( filename, "rb" );
-
-		fseek(fpV, 0, SEEK_END);
-		u32 len=ftell(fpV);
-		if(len>=4992)
-		{
-			fseek(fpV, 488, SEEK_SET);
-			fread((void *) bdemu, 1024, 1, fpV);
-			fclose(fpV);
-			payload=0;
-			hermes_payload_355(0);
-
-			if(sys8_enable(0) > 0)
-			{
-				payload=1; payloadT[0]=0x48; //H
-				ret = sys8_enable(0);
-				ret = sys8_path_table(0ULL);
-				bdemu2_present=1;
-			}
-			else
-			{
-				payload=-1; payloadT[0]=0x20; //NONE
-			}
-		}
-		else
-		{
-			payload=-1; payloadT[0]=0x20; //NONE
-			fclose(fpV);
-			dialog_ret=0;cellMsgDialogOpen2( type_dialog_ok, (const char*) STR_ERR_BDEMU1, dialog_fun2, (void*)0x0000aaab, NULL );wait_dialog();
-		}
-	}
-
-	sprintf(filename, "%s/BDEMU.BIN", app_usrdir);
-	if(c_firmware == 3.41f && payload==-1 && exist(filename) && bd_emulator==1)
-	{
-		fpV = fopen ( filename, "rb" );
-		fseek(fpV, 0, SEEK_END);
-		u32 len=ftell(fpV);
-		if(len>=4992)
-		{
-			fseek(fpV, 1512, SEEK_SET);
-			fread((void *) bdemu, 3480, 1, fpV);
-			fclose(fpV);
-			payload=0;
-			hermes_payload_341();
-			sys_timer_usleep(250000);
-
-			if(sys8_enable(0) > 0)
-			{
-				payload=1; payloadT[0]=0x48; //H
-				ret = sys8_enable(0);
-				ret = sys8_path_table(0ULL);
-				bdemu2_present=1;
-			}
-			else
-			{
-				payload=-1; payloadT[0]=0x20; //NONE
-			}
-		}
-		else
-		{
-			payload=-1; payloadT[0]=0x20; //NONE
-			fclose(fpV);
-			//dialog_ret=0;cellMsgDialogOpen2( type_dialog_ok, (const char*) STR_ERR_BDEMU1, dialog_fun2, (void*)0x0000aaab, NULL );wait_dialog();
-			//dialog_ret=0;cellMsgDialogOpen2( type_dialog_ok, (const char*) STR_ERR_BDEMU1, dialog_fun2, (void*)0x0000aaab, NULL );wait_dialog();
-
-		}
-	}
 
 	if(!debug_mode)
 	{
@@ -21932,23 +21608,8 @@ int main(int argc, char **argv)
 	clean_up();
 	remove((char*)"/dev_hdd0/tmp/turnoff");
 
-	if(payload==-1)
-	{
-	/*	if(bd_emulator)
-		{
-			dialog_ret=0;
-			sprintf(filename, "%s/BDEMU.BIN", app_usrdir);
-			if(!exist(filename))
-				cellMsgDialogOpen2( type_dialog_ok, (const char*) STR_ERR_BDEMU2, dialog_fun2, (void*)0x0000aaab, NULL );
-			else
-				cellMsgDialogOpen2( type_dialog_ok, (const char*) STR_ERR_BDEMU3, dialog_fun2, (void*)0x0000aaab, NULL );
-			wait_dialog();
-		}*/
-		if(c_firmware == 3.55f) psgroove_main(1);
 
-	}
-	else
-		reset_mount_points();
+	reset_mount_points();
 	disable_sc36();
 
 	if(cover_mode > MODE_FILEMAN)
@@ -22087,25 +21748,6 @@ int main(int argc, char **argv)
 
 	pad_reset();
 
-	if(c_firmware==3.55f)
-	{
-		HVSC_SYSCALL_ADDR		= HVSC_SYSCALL_ADDR_355;
-		NEW_POKE_SYSCALL_ADDR	= NEW_POKE_SYSCALL_ADDR_355;
-		SYSCALL_TABLE			= SYSCALL_TABLE_355;
-
-	    if ((peekq(0x80000000002D7820ULL) >> 56) == 0x20) pokeq( 0x80000000002D7820ULL, (0x40ULL << 56));
-		if(c_firmware==3.55f && (peek_lv1(0x16f3b8ULL) == 0x7f83e37860000000ULL)) ss_patched=1;
-	}
-	else
-	if(c_firmware==3.41f)
-	{
-		HVSC_SYSCALL_ADDR		= HVSC_SYSCALL_ADDR_341;
-		NEW_POKE_SYSCALL_ADDR	= NEW_POKE_SYSCALL_ADDR_341;
-		SYSCALL_TABLE			= SYSCALL_TABLE_341;
-
-	    if ((peekq(0x80000000002CF880ULL) >> 56) == 0x20) pokeq( 0x80000000002CF880ULL, (0x40ULL << 56));
-		if(c_firmware==3.55f && (peek_lv1(0x16f3b8ULL) == 0x7f83e37860000000ULL)) ss_patched=1;
-	}
     sys_storage_reset_bd();
 	sys_storage_auth_bd();
 	mountpoints(MOUNT);
@@ -23744,6 +23386,7 @@ reinit_side_menu:
 				if( (is_video_loading || is_music_loading || is_photo_loading || is_retro_loading || is_game_loading || is_any_xmb_column))
 					opt_list[0].label[0]='!'; //refresh
 
+/*
 				sprintf(opt_list[2].label, " %s", (char*) STR_GM_DELETE);
 				if(xmb[xmb0_icon].member[xmb[xmb0_icon].first].type == 32)
 					sprintf(opt_list[2].value, "%s", "delete");
@@ -23751,6 +23394,7 @@ reinit_side_menu:
 					sprintf(opt_list[2].value, "%s", "game_del");
 				if(disable_options==1 || disable_options==3 || strstr(xmb[xmb0_icon].member[xmb[xmb0_icon].first].file_path, "/dev_bdvd")!=NULL)
 					opt_list[2].label[0]='!'; //delete disabled
+*/
 
 				if((xmb[xmb0_icon].member[xmb[xmb0_icon].first].type==35 || xmb[xmb0_icon].member[xmb[xmb0_icon].first].type==36))// && ss_patched
 				{
@@ -23900,59 +23544,34 @@ skip_to_side_menu:
 					time ( &rawtime );
 					timeinfo = localtime ( &rawtime );
 					char prefix[64];
+					char prefix2[64];
+					char name_iso[64];
+
 					sprintf(prefix, "%04d%02d%02d-%02d%02d%02d-", timeinfo->tm_year+1900, timeinfo->tm_mon+1, timeinfo->tm_mday, timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
 
-					if( (xmb[xmb0_icon].member[xmb[xmb0_icon].first].type==35 || disc_in_tray==PS2_DISC) && ss_patched)
+					if(exist((char*)"/dev_bdvd/PS3_GAME") || disc_in_tray==PS3_DISC )
 					{
-						cellFsMkdir(iso_ps2, S_IRWXO | S_IRWXU | S_IRWXG | S_IFDIR); cellFsChmod(iso_ps2, 0777);
-						sprintf(filename, "%s/%sPS2.iso", iso_ps2, prefix);
-					}
-					else
-					if( (xmb[xmb0_icon].member[xmb[xmb0_icon].first].type==36 || disc_in_tray==PSX_DISC) && ss_patched)
-					{
-						cellFsMkdir(iso_psx, S_IRWXO | S_IRWXU | S_IRWXG | S_IFDIR); cellFsChmod(iso_psx, 0777);
-						sprintf(filename, "%s/%sPSX.iso", iso_psx, prefix);
-					}
-					else
 
-					if(exist((char*)"/dev_bdvd/BDMV/index.bdmv") && ss_patched)
-					{
-						cellFsMkdir(iso_bdv, S_IRWXO | S_IRWXU | S_IRWXG | S_IFDIR); cellFsChmod(iso_bdv, 0777);
-						sprintf(filename, "%s/%sBDMV.iso", iso_bdv, prefix);
-					}
-					else
-					if(exist((char*)"/dev_bdvd/VIDEO_TS") && ss_patched)
-					{
-						cellFsMkdir(iso_dvd, S_IRWXO | S_IRWXU | S_IRWXG | S_IFDIR); cellFsChmod(iso_dvd, 0777);
-						sprintf(filename, "%s/%sDVD.iso", iso_dvd, prefix);
-					}
-					else
-					if(exist((char*)"/dev_bdvd/PS3_GAME/COBRA/DISC.ISO") ) //prova
-					{
-						cellFsMkdir((char*)"/dev_hdd0/game/BCED01063DATA/USRDIR/COBRA_ISO", S_IRWXO | S_IRWXU | S_IRWXG | S_IFDIR); cellFsChmod((char*)"/dev_hdd0/game/BCED01063DATA/USRDIR/COBRA_ISO", 0777);
-						sprintf(filename, "%s/%sPS3.iso", (char*)"/dev_hdd0/game/BCED01063DATA/USRDIR/COBRA_ISO", prefix);
-					}
-					else
-					if(exist((char*)"/dev_bdvd/PS3_GAME") )
-					{
-						cellFsMkdir(iso_ps3, S_IRWXO | S_IRWXU | S_IRWXG | S_IFDIR); cellFsChmod(iso_ps3, 0777);
-						sprintf(filename, "%s/%sPS3.iso", iso_ps3, prefix);
+						int i;
+						for( i=0; i<10; i++){ sprintf(iso_ps3_usbs,"/dev_usb%03d", i); if(exist((char*)iso_ps3_usbs)){ sprintf(iso_ps3_usbs,"/dev_usb%03d/PS3ISO", i);  goto iso_ps3_usbs_iso; }
+
+						 }
+
+						sprintf(iso_ps3_usbs,"/dev_usb000/PS3ISO");
+
+iso_ps3_usbs_iso:
+
+						cellFsMkdir(iso_ps3_usbs, S_IRWXO | S_IRWXU | S_IRWXG | S_IFDIR); cellFsChmod(iso_ps3_usbs, 0777);
+
+						sprintf(prefix2, "/dev_hdd0/game/BCED01063DATA/USRDIR/PS3_ISO/%sPS3.iso", prefix);
+						sprintf(filename, "%s", iso_ps3_usbs);
+						sprintf(name_iso, "%s/%sPS3.iso", iso_ps3_usbs, prefix);
+
+
 					}
 
-					else
-					if(exist((char*)"/dev_bdvd/PS3_GAME") && ss_patched)
-					{
-						cellFsMkdir((char*)"/dev_hdd0/game/BCED01063DATA/USRDIR/PS3_ISO", S_IRWXO | S_IRWXU | S_IRWXG | S_IFDIR); cellFsChmod(iso_ps3, 0777);
-						sprintf(filename, "%s/%sPS3.iso", (char*)"/dev_hdd0/game/BCED01063DATA/USRDIR/PS3_ISO", prefix);
-					}
-					else
 
-					if(ss_patched)
-					{
-						cellFsMkdir(iso_dvd, S_IRWXO | S_IRWXU | S_IRWXG | S_IFDIR); cellFsChmod(iso_dvd, 0777);
-						sprintf(filename, "%s/%sDATA.iso", iso_dvd, prefix);
-					}
-					create_iso(filename);
+					  create_iso(filename, prefix2, name_iso);
 				}
 
 				else if(!strcmp(opt_list[ret_f].value, "delete"))
@@ -24295,6 +23914,7 @@ cancel_theme_exit:
 				char reload_self[128];
 				//sprintf(reload_self, "%s/RELOAD.SELF", app_usrdir);
 				sprintf(reload_self, "%s/EBOOT.BIN", app_usrdir);
+
 				if(exist(reload_self))
 				{
 					unload_modules();
@@ -26074,6 +25694,7 @@ skip_to_FM:
 							draw_square((0.240f-0.5f)*2.0f, (0.5f-0.200)*2.0f, 1.04f, 1.04f, -0.2f, 0x00080ff40);
 							//sprintf(string1, "About multiMAN\n ver %s\n", current_version);
 							sprintf(string1, "About SonicMan-Cobra-ODE\n ver %s\n", current_version);
+
 							cellDbgFontPrintf( 0.43f, 0.25f, 0.7f, 0xa0a0a0a0, string1);
 							cellDbgFontPrintf( 0.28f, 0.44f, 0.7f, 0xa0c0c0c0,
 									"   multiMAN is a hobby project, distributed in the\nhope that it will be useful, but WITHOUT ANY\nWARRANTY; without even the implied  warranty of\nMERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.");
@@ -26272,7 +25893,7 @@ skip_to_FM:
 								draw_text_stroke( (x+0.025f)-(float)((0.0094f*(float)(strlen(str)))/2), y-0.115f, 0.75f, 0xffc0c0c0, str);
 
 								if ( ((old_pad & BUTTON_CROSS) || (old_pad & BUTTON_L3) || (old_pad & BUTTON_CIRCLE) || (old_pad & BUTTON_R3)) && strstr(path, "/web")!=NULL)
-								{new_pad=0; launch_web_browser((char*)"http://www.psxstore.com/");}
+								{new_pad=0; launch_web_browser((char*)"http://www.playstation.com/store/");}
 
 
 								if ( (old_pad & BUTTON_CROSS)) {state_draw=1; state_read=2; sprintf(current_left_pane, "%s", path); new_pad=0;}
@@ -26500,7 +26121,6 @@ static void png_thread_entry( uint64_t arg )
 	sys_ppu_thread_exit(0);
 }
 
-
 static void jpg_thread_entry( uint64_t arg )
 {
 	(void)arg;
@@ -26557,7 +26177,6 @@ void load_png_threaded(int _xmb_icon, int cn)
 						   misc_thr_prio-100, app_stack_size,//misc_thr_prio
 						   0, "multiMAN_png" );
 }
-
 
 static void download_thread_entry( uint64_t arg )
 {
