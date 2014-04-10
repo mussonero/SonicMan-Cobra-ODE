@@ -100,7 +100,7 @@ u64 SYSCALL_TABLE		= SYSCALL_TABLE_355;
 #include "unzip/unzip.h"
 #include "unzip/zip.h"
 #include "unzip/zlib.h"
-#include "iso.h"
+#include "cobra-iso.h"
 #include "multiman.h"
 
 
@@ -20908,7 +20908,7 @@ cancel_iso_raw:
 void create_iso(char* iso_path, char* iso_path2, char* iso_name)
 {
 
-	start_dumps_disc(manager, (char*)iso_path2);
+	//start_dumps_disc(manager, (char*)iso_path2);
 /////
 /////
 
