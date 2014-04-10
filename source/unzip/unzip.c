@@ -1792,7 +1792,11 @@ int makedir(const char *newdir, const char *destination)
 			if (buffer[len-m2] == '/'){ buffer[len-m2] = 0; break;}
 		}
 
+<<<<<<< HEAD
     if ((cellFsMkdir(buffer, S_IRWXO | S_IRWXU | S_IRWXG | S_IFDIR) == 0 ) && cellFsChmod(buffer, CELL_FS_S_IFDIR | 0777))
+=======
+    if (mkdir (buffer, S_IRWXO | S_IRWXU | S_IRWXG | S_IFDIR) == 0)
+>>>>>>> 9651803fdb6d7095efa78677a70e97e89c83b67d
     {
         free(buffer);
         return 1;
@@ -1807,7 +1811,11 @@ int makedir(const char *newdir, const char *destination)
         hold = *p;
         *p = 0;
 
+<<<<<<< HEAD
         if ((cellFsMkdir(buffer, S_IRWXO | S_IRWXU | S_IRWXG | S_IFDIR) == -1 ) &&  (errno == ENOENT) )
+=======
+        if ((mkdir (buffer, S_IRWXO | S_IRWXU | S_IRWXG | S_IFDIR) == -1) )
+>>>>>>> 9651803fdb6d7095efa78677a70e97e89c83b67d
         {
             free(buffer);
             return 0;
