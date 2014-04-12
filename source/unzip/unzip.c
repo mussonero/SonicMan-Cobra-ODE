@@ -18,7 +18,10 @@
 #include "zlib.h"
 #include "unzip.h"
 #include "types.h"
-//#include "crypt.h"
+
+#    ifndef NOUNCRYPT
+#include "crypt.h"
+#    endif
 
 
 #define WRITEBUFFERSIZE (1024)
@@ -161,14 +164,13 @@ typedef struct
                                         file if we are decompressing it */
     int encrypted;
 #    ifndef NOUNCRYPT
-    unsigned long keys[3];     /* keys defining the pseudo-random sequence */
-    const unsigned long* pcrc_32_tab;
+#include "crypt.h"
 #    endif
 } unz_s;
 
 
 
-#include "crypt.h"
+
 
 
 /* ===========================================================================
