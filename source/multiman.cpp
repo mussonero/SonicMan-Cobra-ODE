@@ -111,6 +111,9 @@ u64 SYSCALL_TABLE		= SYSCALL_TABLE_355;
 #include <cell/spurs/types.h>
 #endif
 
+#define cellGcmSetFlip(gCellGcmCurrentContext, frame_index);
+#define cellGcmFlush(gCellGcmCurrentContext);
+
 #define FB(x) ((x)*1920*1080*4)	// 1 video frame buffer
 #define MB(x) ((x)*1024*1024)	// 1 MB
 #define KB(x) ((x)*1024)	// 1 KB
