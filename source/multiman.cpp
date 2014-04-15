@@ -20910,12 +20910,37 @@ cancel_iso_raw:
 
 void create_iso(char* iso_path, char* iso_path2, char* iso_name)
 {
+	char iso_path3[128];
+	char title_name[64];
+	char filename[64];
 
-	//start_dumps_disc(manager, (char*)iso_path2);
-/////
-/////
+	char title_id[16];
+	int par_level=0;
+
+	start_dumps_disc(manager, (char*)iso_path2);
+
+    sprintf(filename, "/dev_bdvd/PS3_GAME/PARAM.SFO");
+    if(exist(filename)){
+
+    	parse_param_sfo((char*)filename, title_name, title_id, &par_level);
+
+    	int n2;
+    		for( n2=1;n2<64;n2++){
+    			if (title_name[strlen(title_name)-n2]==':' ){  title_name[strlen(title_name)-n2]=0;  break;}
+
+    		}
+      	int m2;
+       		for( m2=1;m2<64;m2++){
+       			if (title_name[strlen(title_name)-m2]=='?' || title_name[strlen(title_name)-m2]=='*' ){  title_name[strlen(title_name)-m2]=0;  break;}
+       		}
+
+        	sprintf(iso_path3, "/dev_hdd0/game/BCED01063DATA/USRDIR/PS3_ISO/[%s]-%s.iso", title_id, title_name);
+        	rename(iso_path2, iso_path3);
+}
 
 }
+
+
 
 
 
