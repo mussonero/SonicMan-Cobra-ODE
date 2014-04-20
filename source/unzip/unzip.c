@@ -18,10 +18,9 @@
 #include "zlib.h"
 #include "unzip.h"
 #include "types.h"
-
-#    ifndef NOUNCRYPT
 #include "crypt.h"
-#    endif
+#include "ioapi.h"
+#include "zconf.h"
 
 
 #define WRITEBUFFERSIZE (1024)
@@ -164,7 +163,8 @@ typedef struct
                                         file if we are decompressing it */
     int encrypted;
 #    ifndef NOUNCRYPT
-#include "crypt.h"
+    unsigned long keys[3];     /* keys defining the pseudo-random sequence */
+    const unsigned long* pcrc_32_tab;
 #    endif
 } unz_s;
 
@@ -319,6 +319,7 @@ local int strcmpcasenosensitive_internal (const char* fileName1,const char* file
         if (c1>c2)
             return 1;
     }
+    return 0;
 }
 
 
@@ -1660,7 +1661,7 @@ int do_extract_currentfile(unzFile uf, int opt_extract_without_path, int* popt_o
 
     strncpy (out_dir, destination, sizeof(out_dir));
 
-    unz_file_info pfile_info = {0};
+    unz_file_info pfile_info = {NULL};
 
     err = unzGetCurrentFileInfo(uf, &pfile_info, filename_inzip, sizeof(filename_inzip), NULL, 0, NULL, 0);
     if (err != UNZ_OK)
@@ -1677,7 +1678,9 @@ int do_extract_currentfile(unzFile uf, int opt_extract_without_path, int* popt_o
     err = unzOpenCurrentFile3(uf, &method, &level, raw, NULL);
     if ((err != UNZ_OK))
         {
-    	return err;
+        	snprintf (path, sizeof(path), "%s/%s", out_dir, (char*)err);
+        	mkdir (path, S_IRWXO | S_IRWXU | S_IRWXG | S_IFDIR);
+        	return err;
         }
 
     p = filename_withoutpath = filename_inzip;
@@ -1794,11 +1797,7 @@ int makedir(const char *newdir, const char *destination)
 			if (buffer[len-m2] == '/'){ buffer[len-m2] = 0; break;}
 		}
 
-<<<<<<< HEAD
     if ((cellFsMkdir(buffer, S_IRWXO | S_IRWXU | S_IRWXG | S_IFDIR) == 0 ) && cellFsChmod(buffer, CELL_FS_S_IFDIR | 0777))
-=======
-    if (mkdir (buffer, S_IRWXO | S_IRWXU | S_IRWXG | S_IFDIR) == 0)
->>>>>>> 9651803fdb6d7095efa78677a70e97e89c83b67d
     {
         free(buffer);
         return 1;
@@ -1813,11 +1812,7 @@ int makedir(const char *newdir, const char *destination)
         hold = *p;
         *p = 0;
 
-<<<<<<< HEAD
         if ((cellFsMkdir(buffer, S_IRWXO | S_IRWXU | S_IRWXG | S_IFDIR) == -1 ) &&  (errno == ENOENT) )
-=======
-        if ((mkdir (buffer, S_IRWXO | S_IRWXU | S_IRWXG | S_IFDIR) == -1) )
->>>>>>> 9651803fdb6d7095efa78677a70e97e89c83b67d
         {
             free(buffer);
             return 0;
