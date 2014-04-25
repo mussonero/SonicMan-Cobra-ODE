@@ -1,0 +1,91 @@
+SoniMan-Cobra-ODE-BETA1
+Il Primo Rilascio V1
+log:
+Stato aggiunto il supporto per Cobra-Ode-MCU-v2..
+Stato aggiunto il supporto per Pkg ( ancora in fase di prova ).
+Aggiunto  il supporto Dumping alla stile JailBreak ( per usare questa funzionalità il gioco originale devi essere presente nel sportello di ps3 )  per usare questa funzionalità premere X sulla icona Cobra-Pass-Mode  tramite SonicManager ..
+Stato aggiunto il supporto per i file Zip  ma,,,( ancora in fase di prova  ).
+Stato aggiunto il supporto per le copertine (covers) dei giochi  di ps3 .
+Stato aggiunto la ultima versione ShowTime-4.5.304.
+--------------------------------------------------------------------------------------------------------------------------------
+V1.01
+La abilita di vedere la informazione riguarda la versione ODE MCU installata tramite informazione sulla sistema.
+Fix mem(xmb) version.
+--------------------------------------------------------------------------------------------------------------------------------
+V1.01Z
+Stato aggiunto  il supporto per i file Zip con Level1 no Compressione  in modalità store mode solo.
+------------------------------------------------------------------------------------------------------------------------
+V2.0
+Stato aggiunto un metodo per estrarre il file Zip che ha più di una cartelle dentro il Zip file stesso.
+Stato aggiunto il supporto per creare un'immagine ISO dei giochi con nuovo metodo usando un nuovo API.
+Fix per il uso della memoria SonicManager ,più stabile .
+ShowTime aggiornato, non serve più una penna-usb ,se usi SonicmangerV2.0 per salvare i impostazioni e cache file temporanei.
+V2.01
+Aggiornamento riguarda il metodo per creare un'immagine ISO dei giochi.
+Aggiornamento  per ShowTime.
+Fix riguarda il metodo di  estrazione i file  Zip .
+-------------------------------------------------------------------------------------------------------------------
+V2.02
+aggiornamento riguarda  l'immagine di  giochi PS2 e PSX . Ora l'immagine dei PSX e giochi PS2 appaiono sotto la colonna retro.
+aggiornamento per l'immagine BLU-RAY DVD e. Ora l'immagine dei DVD e BLU-RAY apparirà sotto colonna video.
+Stato modificato il file param.sfo ,ps3_disc.sfb and lic.dat, grazie a  josemetallica da  maxconsle
+-------------------------------------------------------------------------------------------------------------------
+V3.00
+Fix riguarda  l'immagine di  giochi PS2 e PSX . Ora l'immagine dei PSX e giochi PS2 appaiono sotto la colonna retro, con nuova funzionalità cover mode ,( il nome del cover devi avere lo stesso nome del file iso ,, tipo xxxNOMe.iso a xxxNOME_COV.JPG ) il cover si installa sotto la cartella  cover_retro/psx o cover_retro/ps2 .
+Fix per l'immagine BLU-RAY DVD e. Ora l'immagine dei DVD e BLU-RAY apparirà sotto colonna video, con nuova funzionalità cover mode , ( il nome del cover devi avere lo stesso nome del file iso ,, tipo xxxNOMe.iso a xxxNOME_COV.JPG ) il cover si installa sotto la cartella  cover/dvd o cover/bd .
+La abilita di lanciare i giochi da SonicMan .
+Adesso si può avviare SonicMan in 8 modalità (  ).
+Fix  riguarda la installazione di  file DLC PKG  e PKG di  aggiornamenti dei giochi .
+nuova funzionalità aggiunta di installare PIC1 ( sfondi per i giochi ISO di cobra) sotto la cartella PIC1s, re-nome  il file PIC1 del gioco a ID del titolo (( da PIC1.PNG a BSDE00000.PNG)) nota( svuotare la cartella cache ) .
+La abilita di scegliere  la distinzione per estrarre il file zip .
+ShowTime aggiornato, ora sarà lanciato dalla cartella Inizio di  SonicMan-ODE
+Altri piccoli aggiustamenti :) . 
+
+
+
+
+SoniMan-Cobra-ODE-BETA1 
+
+the First Release  V1
+log: 
+Added support for Cobra-ode-MCU-v2 
+Added support for Pkg (still in test phase) 
+Added support for dumping  ps3 games to a jailbreak format style  (to use this feature the original game most be in a ps3 drive )  to activate this  feature click X on Cobra-Pass-Mode ICON trough SonicManager .
+Zip support  was added but,,, (still in test phase) 
+Added support for ps3 games covers , now you can copy your covers under the folder covers.  
+Added the latest version 4.5.304 of ShowTime
+--------------------------------------------------------------------------------------------------------------------------------
+V1.01
+now you can see the installed Ode MCU version information via system information .
+Fix mem(xmb) version .
+--------------------------------------------------------------------------------------------------------------------------------
+
+V1.01Z
+Added Zip Level1 no Compression support , store mode only .
+--------------------------------------------------------------------------------------------------------------------------------
+V2
+Added a method to extract the Zip file that has more than one folders in it .
+Added support to create an ISO image with new API .
+Fix for memory use, more stable .
+ShowTime updated, no longer need a usb-stick if you are using  SonicmangerV2.0 to store showtime configurations and caches .
+
+v2.01
+Update regarding the method of creating an ISO image of  games .
+ Updated  showtime .
+ Fix for Zip files extraction .
+----------------------------------------------------------------------------------------------------------------------------
+V2.02
+Update affects the ISO images of the PS2 and PSX games. Now the images of the PSX and PS2 Games appear under the retro column .
+Update affects the ISO images of  DVD and BLU-RAY  . Now the ISO images of DVD and BLU-RAY Appear under video column .
+Edit the param.sfo ,ps3_disc.sfb and lic.dat, thanks to  josemetallica from maxconsle .
+----------------------------------------------------------------------------------------------------------------------------
+V3.00
+Fix regards the ISO images of the PS2 and PSX games . Now the ISO image of the PSX and PS2 Games appear under the retro column with new functionality Cover mode support, (the name of The cover must have the same name as the iso file , ex,,  xxxNOMe.iso to xxxNOME_COV.JPG ) The covers are installed under the folder cover_retro /psx or cover_retro/ps2 .
+Fix regards the ISO images BLU- RAY and DVD .Now the ISO images of DVD and BLU-RAY appear Under video column , with new functionality cover mode support, (the name of the cover must Have the same name as the iso file , type xxxNOMe.iso to xxxNOME_COV.JPG ) the covers are Installed under the folder covers/ dvd or covers/ bd.
+The ability to launch the games from SonicMan .
+Now you can start SonicMan in 8 mode ().
+Fix regarding the installation of  DLC PKGs  and updates PKGs of the games.
+Added new feature , PIC1 support (PS3 ISO  games backgrounds ) now you can install your PIC1.PNG under the folder PIC1s, please re-name the file PIC1.PNG  of the game's to title ID ex,,,(( from PIC1.PNG to BSDE00000.PNG)) note (empty the cache folder after ) .
+The ability to chose  extract destination of  Zip File .
+ShowTime updated, now it will be launched from SonicMan-ODE Home folder
+Other small fixs :)
