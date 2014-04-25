@@ -30,16 +30,7 @@ aggiornamento riguarda  l'immagine di  giochi PS2 e PSX . Ora l'immagine dei PSX
 aggiornamento per l'immagine BLU-RAY DVD e. Ora l'immagine dei DVD e BLU-RAY apparirà sotto colonna video.
 Stato modificato il file param.sfo ,ps3_disc.sfb and lic.dat, grazie a  josemetallica da  maxconsle
 -------------------------------------------------------------------------------------------------------------------
-V3.00
-Fix riguarda  l'immagine di  giochi PS2 e PSX . Ora l'immagine dei PSX e giochi PS2 appaiono sotto la colonna retro, con nuova funzionalità cover mode ,( il nome del cover devi avere lo stesso nome del file iso ,, tipo xxxNOMe.iso a xxxNOME_COV.JPG ) il cover si installa sotto la cartella  cover_retro/psx o cover_retro/ps2 .
-Fix per l'immagine BLU-RAY DVD e. Ora l'immagine dei DVD e BLU-RAY apparirà sotto colonna video, con nuova funzionalità cover mode , ( il nome del cover devi avere lo stesso nome del file iso ,, tipo xxxNOMe.iso a xxxNOME_COV.JPG ) il cover si installa sotto la cartella  cover/dvd o cover/bd .
-La abilita di lanciare i giochi da SonicMan .
-Adesso si può avviare SonicMan in 8 modalità (  ).
-Fix  riguarda la installazione di  file DLC PKG  e PKG di  aggiornamenti dei giochi .
-nuova funzionalità aggiunta di installare PIC1 ( sfondi per i giochi ISO di cobra) sotto la cartella PIC1s, re-nome  il file PIC1 del gioco a ID del titolo (( da PIC1.PNG a BSDE00000.PNG)) nota( svuotare la cartella cache ) .
-La abilita di scegliere  la distinzione per estrarre il file zip .
-ShowTime aggiornato, ora sarà lanciato dalla cartella Inizio di  SonicMan-ODE
-Altri piccoli aggiustamenti :) . 
+
 
 
 
@@ -79,13 +70,3 @@ Update affects the ISO images of the PS2 and PSX games. Now the images of the PS
 Update affects the ISO images of  DVD and BLU-RAY  . Now the ISO images of DVD and BLU-RAY Appear under video column .
 Edit the param.sfo ,ps3_disc.sfb and lic.dat, thanks to  josemetallica from maxconsle .
 ----------------------------------------------------------------------------------------------------------------------------
-V3.00
-Fix regards the ISO images of the PS2 and PSX games . Now the ISO image of the PSX and PS2 Games appear under the retro column with new functionality Cover mode support, (the name of The cover must have the same name as the iso file , ex,,  xxxNOMe.iso to xxxNOME_COV.JPG ) The covers are installed under the folder cover_retro /psx or cover_retro/ps2 .
-Fix regards the ISO images BLU- RAY and DVD .Now the ISO images of DVD and BLU-RAY appear Under video column , with new functionality cover mode support, (the name of the cover must Have the same name as the iso file , type xxxNOMe.iso to xxxNOME_COV.JPG ) the covers are Installed under the folder covers/ dvd or covers/ bd.
-The ability to launch the games from SonicMan .
-Now you can start SonicMan in 8 mode ().
-Fix regarding the installation of  DLC PKGs  and updates PKGs of the games.
-Added new feature , PIC1 support (PS3 ISO  games backgrounds ) now you can install your PIC1.PNG under the folder PIC1s, please re-name the file PIC1.PNG  of the game's to title ID ex,,,(( from PIC1.PNG to BSDE00000.PNG)) note (empty the cache folder after ) .
-The ability to chose  extract destination of  Zip File .
-ShowTime updated, now it will be launched from SonicMan-ODE Home folder
-Other small fixs :)
